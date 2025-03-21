@@ -1,0 +1,111 @@
+# AI Hedge Fund Project Rules & Patterns
+
+## Project Structure Patterns
+
+### Directory Organization
+- `src/agents/`: Individual trading strategy implementations
+- `src/data/`: Data management and models
+- `src/llm/`: LLM integration and abstractions
+- `src/tools/`: Utility APIs and helpers
+- `src/utils/`: Common helper functions
+- `memory-bank/`: Project documentation and context
+
+### File Naming
+- Agent implementations: lowercase with underscores (e.g., warren_buffett.py)
+- Utility modules: descriptive, lowercase (e.g., visualize.py)
+- Documentation: kebab-case for markdown files
+
+## Code Style Preferences
+
+### Python Patterns
+- Type hints for all function definitions
+- Docstrings following Google style
+- Error handling with custom exceptions
+- Async functions for data operations
+
+### Documentation
+- Markdown for all documentation
+- Mermaid diagrams for architecture
+- Emoji indicators for status (✅, ⏳, ❌)
+- Clear section hierarchies
+
+## Implementation Patterns
+
+### Agent Framework
+- Base class inheritance for strategies
+- Strategy-specific signal generation
+- Common interface for decision making
+- Standardized risk controls
+
+### Data Management
+- Caching for market data
+- Modular data source integration
+- State management through graph
+- Efficient data transformations
+
+### Risk Management
+- Centralized risk control
+- Position size calculations
+- Circuit breaker implementation
+- Performance monitoring
+
+## Development Workflow
+
+### Version Control
+- Feature branches from main
+- Descriptive commit messages
+- Regular documentation updates
+- Version tagging for releases
+
+### Testing Approach
+- Unit tests for strategies
+- Integration tests for system
+- Backtesting as validation
+- Performance benchmarks
+
+## Project Intelligence
+
+### Critical Paths
+1. Data Pipeline
+   - Market data ingestion
+   - Transformation
+   - Caching
+   - State updates
+
+2. Strategy Execution
+   - Signal generation
+   - Decision making
+   - Risk assessment
+   - Position sizing
+
+3. System Integration
+   - Agent communication
+   - Portfolio updates
+   - Risk monitoring
+   - Performance tracking
+
+### Known Challenges
+1. Performance Optimization
+   - Large dataset handling
+   - Memory management
+   - Computation efficiency
+   - Cache optimization
+
+2. Strategy Coordination
+   - Signal conflicts
+   - Position aggregation
+   - Risk allocation
+   - Performance attribution
+
+### Tool Usage Patterns
+1. Memory Bank Updates
+   - Regular progress tracking
+   - System pattern documentation
+   - Technical context maintenance
+   - Active development notes
+
+2. Development Tools
+   - Poetry for dependencies
+   - VSCode for development
+   - Git for version control
+   - Python tools for testing
