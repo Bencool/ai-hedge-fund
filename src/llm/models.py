@@ -13,6 +13,7 @@ class ModelProvider(str, Enum):
     """Enum for supported LLM providers"""
     ANTHROPIC = "Anthropic"
     DEEPSEEK = "DeepSeek"
+    SILICONFLOW = "SiliconFlow"
     GEMINI = "Gemini"
     GROQ = "Groq"
     OPENAI = "OpenAI"
@@ -68,6 +69,16 @@ AVAILABLE_MODELS = [
         display_name="[deepseek] deepseek-v3",
         model_name="deepseek-chat",
         provider=ModelProvider.DEEPSEEK
+    ),
+    LLMModel(
+        display_name="[siliconflow] DeepSeek-R1",
+        model_name="Pro/deepseek-ai/DeepSeek-R1",
+        provider=ModelProvider.SILICONFLOW
+    ),
+    LLMModel(
+        display_name="[siliconflow] DeepSeek-V3",
+        model_name="Pro/deepseek-ai/DeepSeek-V3",
+        provider=ModelProvider.SILICONFLOW
     ),
     LLMModel(
         display_name="[gemini] gemini-2.0-flash",
@@ -147,3 +158,25 @@ def get_model(model_name: str, model_provider: ModelProvider) -> ChatOpenAI | Ch
             print(f"API Key Error: Please make sure GOOGLE_API_KEY is set in your .env file.")
             raise ValueError("Google API key not found.  Please make sure GOOGLE_API_KEY is set in your .env file.")
         return ChatGoogleGenerativeAI(model=model_name, api_key=api_key)
+    elif model_provider == ModelProvider.SILICONFLOW:
+        api_key = os.getenv("SILICONFLOW_API_KEY")
+        base_url = os.getenv("SILICONFLOW_BASE_URL")
+        if not api_key or not base_url:
+            print(f"API Key Error: Please make sure SILICONFLOW_API_KEY and SILICONFLOW_BASE_URL are set in your .env file.")
+            raise ValueError("SiliconFlow credentials not found. Please check your .env file.")
+        return ChatOpenAI(
+            api_key=api_key,
+            base_url=base_url,
+            model=model_name
+        )  # 使用标准OpenAI客户端兼容第三方API端点
+    elif model_provider == ModelProvider.SILICONFLOW:
+        api_key = os.getenv("SILICONFLOW_API_KEY")
+        base_url = os.getenv("SILICONFLOW_BASE_URL")
+        if not api_key or not base_url:
+            print(f"API Key Error: Please make sure SILICONFLOW_API_KEY and SILICONFLOW_BASE_URL are set in your .env file.")
+            raise ValueError("SiliconFlow credentials not found. Please check your .env file.")
+        return ChatOpenAI(
+            base_url=base_url,
+            api_key=api_key,
+            model=model_name
+        )
