@@ -78,7 +78,7 @@ def phil_fisher_agent(state: AgentState):
         market_cap = get_market_cap(ticker, end_date)
 
         progress.update_status("phil_fisher_agent", ticker, "Fetching insider trades")
-        insider_trades = get_insider_trades(ticker, end_date, start_date=None, limit=50)
+        insider_trades = get_insider_trades(ticker, end_date, limit=50)
 
         progress.update_status("phil_fisher_agent", ticker, "Fetching company news")
         company_news = get_company_news(ticker, end_date, start_date=None, limit=50)

@@ -1,282 +1,557 @@
+"""
+工具API模块
+
+提供各种数据获取和处理工具函数
+"""
 import os
 import pandas as pd
-import requests
+import numpy as np
+from typing import List, Dict, Any, Optional, Union
+from datetime import datetime
 
-from data.cache import get_cache
-from data.models import (
-    CompanyNews,
-    CompanyNewsResponse,
-    FinancialMetrics,
-    FinancialMetricsResponse,
-    Price,
-    PriceResponse,
-    LineItem,
-    LineItemResponse,
-    InsiderTrade,
-    InsiderTradeResponse,
-)
-
-# Global cache instance
-_cache = get_cache()
+from data.data_service import data_service
+from data.models import prices_to_df as convert_prices_to_df
 
 
-def get_prices(ticker: str, start_date: str, end_date: str) -> list[Price]:
-    """Fetch price data from cache or API."""
-    # Check cache first
-    if cached_data := _cache.get_prices(ticker):
-        # Filter cached data by date range and convert to Price objects
-        filtered_data = [Price(**price) for price in cached_data if start_date <= price["time"] <= end_date]
-        if filtered_data:
-            return filtered_data
-
-    # If not in cache or no data in range, fetch from API
-    headers = {}
-    if api_key := os.environ.get("FINANCIAL_DATASETS_API_KEY"):
-        headers["X-API-KEY"] = api_key
-
-    url = f"https://api.financialdatasets.ai/prices/?ticker={ticker}&interval=day&interval_multiplier=1&start_date={start_date}&end_date={end_date}"
-    response = requests.get(url, headers=headers)
-    if response.status_code != 200:
-        raise Exception(f"Error fetching data: {ticker} - {response.status_code} - {response.text}")
-
-    # Parse response with Pydantic model
-    price_response = PriceResponse(**response.json())
-    prices = price_response.prices
-
-    if not prices:
-        return []
-
-    # Cache the results as dicts
-    _cache.set_prices(ticker, [p.model_dump() for p in prices])
-    return prices
+class FinancialLineItem:
+    """财务项目类"""
+    def __init__(self, **kwargs):
+        for key, value in kwargs.items():
+            setattr(self, key, value)
 
 
-def get_financial_metrics(
-    ticker: str,
-    end_date: str,
-    period: str = "ttm",
-    limit: int = 10,
-) -> list[FinancialMetrics]:
-    """Fetch financial metrics from cache or API."""
-    # Check cache first
-    if cached_data := _cache.get_financial_metrics(ticker):
-        # Filter cached data by date and limit
-        filtered_data = [FinancialMetrics(**metric) for metric in cached_data if metric["report_period"] <= end_date]
-        filtered_data.sort(key=lambda x: x.report_period, reverse=True)
-        if filtered_data:
-            return filtered_data[:limit]
-
-    # If not in cache or insufficient data, fetch from API
-    headers = {}
-    if api_key := os.environ.get("FINANCIAL_DATASETS_API_KEY"):
-        headers["X-API-KEY"] = api_key
-
-    url = f"https://api.financialdatasets.ai/financial-metrics/?ticker={ticker}&report_period_lte={end_date}&limit={limit}&period={period}"
-    response = requests.get(url, headers=headers)
-    if response.status_code != 200:
-        raise Exception(f"Error fetching data: {ticker} - {response.status_code} - {response.text}")
-
-    # Parse response with Pydantic model
-    metrics_response = FinancialMetricsResponse(**response.json())
-    # Return the FinancialMetrics objects directly instead of converting to dict
-    financial_metrics = metrics_response.financial_metrics
-
-    if not financial_metrics:
-        return []
-
-    # Cache the results as dicts
-    _cache.set_financial_metrics(ticker, [m.model_dump() for m in financial_metrics])
-    return financial_metrics
+class FinancialMetrics:
+    """财务指标类"""
+    def __init__(self, **kwargs):
+        for key, value in kwargs.items():
+            setattr(self, key, value)
 
 
-def search_line_items(
-    ticker: str,
-    line_items: list[str],
-    end_date: str,
-    period: str = "ttm",
-    limit: int = 10,
-) -> list[LineItem]:
-    """Fetch line items from API."""
-    # If not in cache or insufficient data, fetch from API
-    headers = {}
-    if api_key := os.environ.get("FINANCIAL_DATASETS_API_KEY"):
-        headers["X-API-KEY"] = api_key
-
-    url = "https://api.financialdatasets.ai/financials/search/line-items"
-
-    body = {
-        "tickers": [ticker],
-        "line_items": line_items,
-        "end_date": end_date,
-        "period": period,
-        "limit": limit,
+def get_financial_metrics(ticker: str, end_date: Optional[str] = None, period: str = "annual", limit: int = 5) -> List[FinancialMetrics]:
+    """
+    获取财务指标数据
+    
+    参数:
+        ticker: 股票代码
+        end_date: 截止日期 (YYYY-MM-DD)，默认为最新日期
+        period: 数据周期 ('annual'=年度, 'quarterly'=季度, 'ttm'=过去12个月)
+        limit: 返回的数据点数量限制
+        
+    返回:
+        财务指标数据对象列表
+    """
+    # 获取基本面数据
+    fundamentals = get_fundamentals(ticker)
+    
+    # 创建一个包含基本财务指标的列表
+    # 在实际应用中，这里应该从数据源获取历史财务数据
+    # 目前我们返回一个简化的数据结构
+    metrics = []
+    
+    # 添加当前财务指标作为第一个数据点
+    current_metrics = {
+        "date": end_date or datetime.now().strftime('%Y-%m-%d'),
+        "pe_ratio": fundamentals.get("pe_ratio"),
+        "price_to_book": fundamentals.get("price_to_book"),
+        "debt_to_equity": fundamentals.get("debt_to_equity"),
+        "return_on_equity": fundamentals.get("return_on_equity"),
+        "profit_margins": fundamentals.get("profit_margins"),
+        "revenue_growth": fundamentals.get("revenue_growth"),
+        "current_ratio": fundamentals.get("current_ratio"),
+        "quick_ratio": fundamentals.get("quick_ratio"),
+        "earnings_growth": 0.05  # 添加默认的收益增长率
     }
-    response = requests.post(url, headers=headers, json=body)
-    if response.status_code != 200:
-        raise Exception(f"Error fetching data: {ticker} - {response.status_code} - {response.text}")
-    data = response.json()
-    response_model = LineItemResponse(**data)
-    search_results = response_model.search_results
-    if not search_results:
-        return []
-
-    # Cache the results
-    return search_results[:limit]
-
-
-def get_insider_trades(
-    ticker: str,
-    end_date: str,
-    start_date: str | None = None,
-    limit: int = 1000,
-) -> list[InsiderTrade]:
-    """Fetch insider trades from cache or API."""
-    # Check cache first
-    if cached_data := _cache.get_insider_trades(ticker):
-        # Filter cached data by date range
-        filtered_data = [InsiderTrade(**trade) for trade in cached_data 
-                        if (start_date is None or (trade.get("transaction_date") or trade["filing_date"]) >= start_date)
-                        and (trade.get("transaction_date") or trade["filing_date"]) <= end_date]
-        filtered_data.sort(key=lambda x: x.transaction_date or x.filing_date, reverse=True)
-        if filtered_data:
-            return filtered_data
-
-    # If not in cache or insufficient data, fetch from API
-    headers = {}
-    if api_key := os.environ.get("FINANCIAL_DATASETS_API_KEY"):
-        headers["X-API-KEY"] = api_key
-
-    all_trades = []
-    current_end_date = end_date
+    # 将字典转换为对象
+    metrics.append(FinancialMetrics(**current_metrics))
     
-    while True:
-        url = f"https://api.financialdatasets.ai/insider-trades/?ticker={ticker}&filing_date_lte={current_end_date}"
-        if start_date:
-            url += f"&filing_date_gte={start_date}"
-        url += f"&limit={limit}"
+    # 为了演示，我们生成一些模拟的历史数据
+    # 在实际应用中，这些数据应该从数据源获取
+    for i in range(1, limit):
+        # 计算历史日期（简化处理）
+        year_offset = i if period == "annual" else i // 4
+        quarter_offset = 0 if period == "annual" else i % 4
         
-        response = requests.get(url, headers=headers)
-        if response.status_code != 200:
-            raise Exception(f"Error fetching data: {ticker} - {response.status_code} - {response.text}")
-        
-        data = response.json()
-        response_model = InsiderTradeResponse(**data)
-        insider_trades = response_model.insider_trades
-        
-        if not insider_trades:
-            break
+        if end_date:
+            hist_date = datetime.strptime(end_date, '%Y-%m-%d')
+        else:
+            hist_date = datetime.now()
             
-        all_trades.extend(insider_trades)
+        if period == "annual":
+            hist_date = hist_date.replace(year=hist_date.year - year_offset)
+        else:
+            hist_date = hist_date.replace(year=hist_date.year - year_offset,
+                                         month=max(1, hist_date.month - 3 * quarter_offset))
         
-        # Only continue pagination if we have a start_date and got a full page
-        if not start_date or len(insider_trades) < limit:
-            break
-            
-        # Update end_date to the oldest filing date from current batch for next iteration
-        current_end_date = min(trade.filing_date for trade in insider_trades).split('T')[0]
+        hist_date_str = hist_date.strftime('%Y-%m-%d')
         
-        # If we've reached or passed the start_date, we can stop
-        if current_end_date <= start_date:
-            break
-
-    if not all_trades:
-        return []
-
-    # Cache the results
-    _cache.set_insider_trades(ticker, [trade.model_dump() for trade in all_trades])
-    return all_trades
-
-
-def get_company_news(
-    ticker: str,
-    end_date: str,
-    start_date: str | None = None,
-    limit: int = 1000,
-) -> list[CompanyNews]:
-    """Fetch company news from cache or API."""
-    # Check cache first
-    if cached_data := _cache.get_company_news(ticker):
-        # Filter cached data by date range
-        filtered_data = [CompanyNews(**news) for news in cached_data 
-                        if (start_date is None or news["date"] >= start_date)
-                        and news["date"] <= end_date]
-        filtered_data.sort(key=lambda x: x.date, reverse=True)
-        if filtered_data:
-            return filtered_data
-
-    # If not in cache or insufficient data, fetch from API
-    headers = {}
-    if api_key := os.environ.get("FINANCIAL_DATASETS_API_KEY"):
-        headers["X-API-KEY"] = api_key
-
-    all_news = []
-    current_end_date = end_date
+        # 创建一些模拟的历史数据（略有变化）
+        # 在实际应用中，这些应该是真实的历史数据
+        hist_metrics = {
+            "date": hist_date_str,
+            "pe_ratio": fundamentals.get("pe_ratio", 15) * (0.9 + 0.2 * (i / limit)),
+            "price_to_book": fundamentals.get("price_to_book", 3) * (0.9 + 0.2 * (i / limit)),
+            "debt_to_equity": fundamentals.get("debt_to_equity", 1.2) * (0.9 + 0.2 * (i / limit)),
+            "return_on_equity": fundamentals.get("return_on_equity", 0.15) * (0.9 + 0.2 * (i / limit)),
+            "profit_margins": fundamentals.get("profit_margins", 0.1) * (0.9 + 0.2 * (i / limit)),
+            "revenue_growth": fundamentals.get("revenue_growth", 0.05) * (0.9 + 0.2 * (i / limit)),
+            "current_ratio": fundamentals.get("current_ratio", 1.5) * (0.9 + 0.2 * (i / limit)),
+            "quick_ratio": fundamentals.get("quick_ratio", 1.2) * (0.9 + 0.2 * (i / limit)),
+            "earnings_growth": 0.05 * (0.9 + 0.2 * (i / limit))  # 添加默认的收益增长率
+        }
+        # 将字典转换为对象
+        metrics.append(FinancialMetrics(**hist_metrics))
     
-    while True:
-        url = f"https://api.financialdatasets.ai/news/?ticker={ticker}&end_date={current_end_date}"
-        if start_date:
-            url += f"&start_date={start_date}"
-        url += f"&limit={limit}"
+    return metrics
+
+def search_line_items(ticker: str, line_items: List[str], end_date: Optional[str] = None,
+                     period: str = "annual", limit: int = 5) -> List[FinancialLineItem]:
+    """
+    搜索特定的财务项目
+    
+    参数:
+        ticker: 股票代码
+        line_items: 要搜索的财务项目列表
+        end_date: 截止日期 (YYYY-MM-DD)，默认为最新日期
+        period: 数据周期 ('annual'=年度, 'quarterly'=季度, 'ttm'=过去12个月)
+        limit: 返回的数据点数量限制
         
-        response = requests.get(url, headers=headers)
-        if response.status_code != 200:
-            raise Exception(f"Error fetching data: {ticker} - {response.status_code} - {response.text}")
+    返回:
+        包含请求的财务项目的数据对象列表
+    """
+    # 获取基本面数据
+    fundamentals = get_fundamentals(ticker)
+    
+    # 创建一个包含请求的财务项目的列表
+    result_items = []
+    
+    # 添加当前财务项目作为第一个数据点
+    current_items = {
+        "date": end_date or datetime.now().strftime('%Y-%m-%d')
+    }
+    
+    # 从基本面数据中提取请求的项目
+    for item in line_items:
+        current_items[item] = fundamentals.get(item)
+    
+    # 将字典转换为对象
+    result_items.append(FinancialLineItem(**current_items))
+    
+    # 为了演示，我们生成一些模拟的历史数据
+    # 在实际应用中，这些数据应该从数据源获取
+    for i in range(1, limit):
+        # 计算历史日期（简化处理）
+        year_offset = i if period == "annual" else i // 4
+        quarter_offset = 0 if period == "annual" else i % 4
         
-        data = response.json()
-        response_model = CompanyNewsResponse(**data)
-        company_news = response_model.news
-        
-        if not company_news:
-            break
+        if end_date:
+            hist_date = datetime.strptime(end_date, '%Y-%m-%d')
+        else:
+            hist_date = datetime.now()
             
-        all_news.extend(company_news)
+        if period == "annual":
+            hist_date = hist_date.replace(year=hist_date.year - year_offset)
+        else:
+            hist_date = hist_date.replace(year=hist_date.year - year_offset,
+                                         month=max(1, hist_date.month - 3 * quarter_offset))
         
-        # Only continue pagination if we have a start_date and got a full page
-        if not start_date or len(company_news) < limit:
-            break
+        hist_date_str = hist_date.strftime('%Y-%m-%d')
+        
+        # 创建一些模拟的历史数据（略有变化）
+        hist_items = {
+            "date": hist_date_str
+        }
+        
+        # 为每个请求的项目生成模拟数据
+        for item in line_items:
+            base_value = fundamentals.get(item, 0)
+            if isinstance(base_value, (int, float)) and base_value != 0:
+                # 为数值类型生成略有变化的历史值
+                hist_items[item] = base_value * (0.9 + 0.2 * (i / limit))
+            else:
+                # 对于非数值或零值，保持不变
+                hist_items[item] = base_value
+        
+        # 将字典转换为对象
+        result_items.append(FinancialLineItem(**hist_items))
+    
+    return result_items
+
+
+def get_prices(ticker: str, start_date: str, end_date: str, interval: str = '1d') -> List[Dict[str, Any]]:
+    """
+    获取历史价格数据
+    
+    参数:
+        ticker: 股票代码
+        start_date: 开始日期 (YYYY-MM-DD)
+        end_date: 结束日期 (YYYY-MM-DD)
+        interval: 数据间隔 ('1d'=日, '1wk'=周, '1mo'=月)
+        
+    返回:
+        价格数据列表
+    """
+    return data_service.get_prices(
+        ticker=ticker,
+        start_date=start_date,
+        end_date=end_date,
+        interval=interval
+    )
+
+
+def get_fundamentals(ticker: str) -> Dict[str, Any]:
+    """
+    获取基本面数据
+    
+    参数:
+        ticker: 股票代码
+        
+    返回:
+        基本面数据字典
+    """
+    return data_service.get_fundamentals(ticker=ticker)
+
+
+def get_market_cap(ticker: str, date: Optional[str] = None) -> Optional[float]:
+    """
+    获取特定日期的市值
+    
+    参数:
+        ticker: 股票代码
+        date: 日期 (YYYY-MM-DD)，默认为最新日期
+        
+    返回:
+        市值（如果可用）
+    """
+    fundamentals = get_fundamentals(ticker)
+    return fundamentals.get('market_cap')
+
+
+def get_pe_ratio(ticker: str) -> Optional[float]:
+    """
+    获取市盈率
+    
+    参数:
+        ticker: 股票代码
+        
+    返回:
+        市盈率（如果可用）
+    """
+    fundamentals = get_fundamentals(ticker)
+    return fundamentals.get('pe_ratio')
+
+
+def prices_to_df(prices: List[Dict[str, Any]]) -> pd.DataFrame:
+    """
+    将价格数据转换为pandas DataFrame
+    
+    参数:
+        prices: 价格数据列表
+        
+    返回:
+        pandas DataFrame
+    """
+    return convert_prices_to_df(prices)
+
+
+def get_price_data(ticker: str, start_date: str, end_date: str, interval: str = '1d') -> pd.DataFrame:
+    """
+    获取价格数据并转换为DataFrame
+    
+    参数:
+        ticker: 股票代码
+        start_date: 开始日期 (YYYY-MM-DD)
+        end_date: 结束日期 (YYYY-MM-DD)
+        interval: 数据间隔
+        
+    返回:
+        pandas DataFrame
+    """
+    return data_service.get_prices_df(
+        ticker=ticker,
+        start_date=start_date,
+        end_date=end_date,
+        interval=interval
+    )
+
+
+def calculate_returns(price_df: pd.DataFrame, period: str = 'daily') -> pd.DataFrame:
+    """
+    计算收益率
+    
+    参数:
+        price_df: 价格DataFrame
+        period: 收益率周期 ('daily', 'weekly', 'monthly')
+        
+    返回:
+        包含收益率的DataFrame
+    """
+    # 确保索引已排序
+    price_df = price_df.sort_index()
+    
+    # 计算收益率
+    if period == 'daily':
+        returns = price_df['close'].pct_change()
+    elif period == 'weekly':
+        returns = price_df['close'].resample('W').last().pct_change()
+    elif period == 'monthly':
+        returns = price_df['close'].resample('M').last().pct_change()
+    else:
+        raise ValueError(f"Unsupported period: {period}")
+    
+    return returns
+
+
+def calculate_volatility(price_df: pd.DataFrame, window: int = 20, annualize: bool = True) -> pd.Series:
+    """
+    计算波动率
+    
+    参数:
+        price_df: 价格DataFrame
+        window: 滚动窗口大小
+        annualize: 是否年化
+        
+    返回:
+        波动率Series
+    """
+    # 计算日收益率
+    returns = price_df['close'].pct_change().dropna()
+    
+    # 计算滚动标准差
+    volatility = returns.rolling(window=window).std()
+    
+    # 年化（假设252个交易日）
+    if annualize:
+        volatility = volatility * (252 ** 0.5)
+    
+    return volatility
+
+
+def get_historical_data(tickers: List[str], start_date: str, end_date: str) -> Dict[str, pd.DataFrame]:
+    """
+    获取多个股票的历史数据
+    
+    参数:
+        tickers: 股票代码列表
+        start_date: 开始日期
+        end_date: 结束日期
+        
+    返回:
+        股票代码到DataFrame的映射
+    """
+    result = {}
+    for ticker in tickers:
+        try:
+            df = get_price_data(ticker, start_date, end_date)
+            if not df.empty:
+                result[ticker] = df
+        except Exception as e:
+            print(f"Error fetching data for {ticker}: {e}")
+    
+    return result
+
+
+def get_available_data_sources() -> List[str]:
+    """
+    获取可用的数据源列表
+    
+    返回:
+        数据源名称列表
+    """
+    return data_service.get_available_sources()
+
+
+def clear_data_cache(ticker: Optional[str] = None) -> int:
+    """
+    清除数据缓存
+    
+    参数:
+        ticker: 股票代码（如果指定，只清除该股票的缓存）
+        
+    返回:
+        清除的缓存条目数量
+    """
+    return data_service.clear_cache(ticker)
+
+
+class InsiderTrade:
+    """内部交易数据类"""
+    def __init__(self, date, insider_name, title, transaction_type, transaction_shares, transaction_price):
+        self.date = date
+        self.insider_name = insider_name
+        self.title = title
+        self.transaction_type = transaction_type
+        self.transaction_shares = transaction_shares
+        self.transaction_price = transaction_price
+
+
+class NewsItem:
+    """新闻项目类"""
+    def __init__(self, date, title, summary, source, url, sentiment):
+        self.date = date
+        self.title = title
+        self.summary = summary
+        self.source = source
+        self.url = url
+        self.sentiment = sentiment
+
+
+def get_insider_trades(ticker: str, end_date: Optional[str] = None, limit: int = 100) -> List[InsiderTrade]:
+    """
+    获取内部交易数据
+    
+    参数:
+        ticker: 股票代码
+        end_date: 截止日期 (YYYY-MM-DD)，默认为最新日期
+        limit: 返回的数据点数量限制
+        
+    返回:
+        内部交易数据列表
+    """
+    # 在实际应用中，这些数据应该从数据源获取
+    # 这里我们生成一些模拟数据用于演示
+    
+    if not end_date:
+        end_date = datetime.now().strftime('%Y-%m-%d')
+    
+    end_date_obj = datetime.strptime(end_date, '%Y-%m-%d')
+    
+    # 模拟数据
+    insider_names = ["John Smith", "Jane Doe", "Robert Johnson", "Emily Williams", "Michael Brown"]
+    titles = ["CEO", "CFO", "CTO", "Director", "VP of Sales"]
+    transaction_types = ["Buy", "Sell"]
+    
+    trades = []
+    for i in range(limit):
+        # 生成随机日期（在过去一年内）
+        days_ago = np.random.randint(1, 365)
+        trade_date = (end_date_obj - pd.Timedelta(days=days_ago)).strftime('%Y-%m-%d')
+        
+        # 随机选择内部人士和职位
+        insider_idx = np.random.randint(0, len(insider_names))
+        insider_name = insider_names[insider_idx]
+        title = titles[insider_idx % len(titles)]
+        
+        # 随机选择交易类型
+        transaction_type = transaction_types[np.random.randint(0, len(transaction_types))]
+        
+        # 生成交易股数和价格
+        # 如果是卖出，交易股数为负数
+        transaction_shares = np.random.randint(100, 10000)
+        if transaction_type == "Sell":
+            transaction_shares = -transaction_shares
             
-        # Update end_date to the oldest date from current batch for next iteration
-        current_end_date = min(news.date for news in company_news).split('T')[0]
+        # 生成随机价格（假设在50-200之间）
+        transaction_price = np.random.uniform(50, 200)
         
-        # If we've reached or passed the start_date, we can stop
-        if current_end_date <= start_date:
-            break
-
-    if not all_news:
-        return []
-
-    # Cache the results
-    _cache.set_company_news(ticker, [news.model_dump() for news in all_news])
-    return all_news
-
-
-
-def get_market_cap(
-    ticker: str,
-    end_date: str,
-) -> float | None:
-    """Fetch market cap from the API."""
-    financial_metrics = get_financial_metrics(ticker, end_date)
-    market_cap = financial_metrics[0].market_cap
-    if not market_cap:
-        return None
-
-    return market_cap
+        # 创建内部交易对象
+        trade = InsiderTrade(
+            date=trade_date,
+            insider_name=insider_name,
+            title=title,
+            transaction_type=transaction_type,
+            transaction_shares=transaction_shares,
+            transaction_price=transaction_price
+        )
+        
+        trades.append(trade)
+    
+    # 按日期排序
+    trades.sort(key=lambda x: x.date, reverse=True)
+    
+    return trades
 
 
-def prices_to_df(prices: list[Price]) -> pd.DataFrame:
-    """Convert prices to a DataFrame."""
-    df = pd.DataFrame([p.model_dump() for p in prices])
-    df["Date"] = pd.to_datetime(df["time"])
-    df.set_index("Date", inplace=True)
-    numeric_cols = ["open", "close", "high", "low", "volume"]
-    for col in numeric_cols:
-        df[col] = pd.to_numeric(df[col], errors="coerce")
-    df.sort_index(inplace=True)
-    return df
-
-
-# Update the get_price_data function to use the new functions
-def get_price_data(ticker: str, start_date: str, end_date: str) -> pd.DataFrame:
-    prices = get_prices(ticker, start_date, end_date)
-    return prices_to_df(prices)
+def get_company_news(ticker: str, end_date: Optional[str] = None, limit: int = 100) -> List[NewsItem]:
+    """
+    获取公司新闻
+    
+    参数:
+        ticker: 股票代码
+        end_date: 截止日期 (YYYY-MM-DD)，默认为最新日期
+        limit: 返回的数据点数量限制
+        
+    返回:
+        新闻项目列表
+    """
+    # 在实际应用中，这些数据应该从数据源获取
+    # 这里我们生成一些模拟数据用于演示
+    
+    if not end_date:
+        end_date = datetime.now().strftime('%Y-%m-%d')
+    
+    end_date_obj = datetime.strptime(end_date, '%Y-%m-%d')
+    
+    # 模拟数据
+    news_titles = [
+        f"{ticker} Reports Strong Quarterly Earnings",
+        f"{ticker} Announces New Product Line",
+        f"{ticker} Expands into International Markets",
+        f"{ticker} Faces Regulatory Challenges",
+        f"{ticker} Stock Downgraded by Analysts",
+        f"{ticker} CEO Resigns",
+        f"{ticker} Acquires Startup for $100M",
+        f"{ticker} Beats Revenue Expectations",
+        f"{ticker} Misses Earnings Estimates",
+        f"{ticker} Announces Stock Buyback Program"
+    ]
+    
+    news_summaries = [
+        f"{ticker} reported quarterly earnings that exceeded analyst expectations, driven by strong product sales.",
+        f"{ticker} unveiled a new product line that aims to capture market share in the growing tech sector.",
+        f"{ticker} announced plans to expand operations into European and Asian markets over the next year.",
+        f"{ticker} is facing scrutiny from regulators over its business practices, which could impact future growth.",
+        f"Several analysts have downgraded {ticker} stock citing concerns about valuation and competition.",
+        f"The CEO of {ticker} has resigned, effective immediately. The board has initiated a search for a replacement.",
+        f"{ticker} has acquired a promising startup to strengthen its position in the AI market.",
+        f"{ticker} reported revenue that exceeded Wall Street expectations, sending the stock higher.",
+        f"{ticker} reported earnings below analyst estimates, citing supply chain challenges.",
+        f"{ticker} announced a $500 million stock buyback program, signaling confidence in its future prospects."
+    ]
+    
+    news_sources = ["Bloomberg", "Reuters", "CNBC", "Wall Street Journal", "Financial Times"]
+    sentiments = ["positive", "negative", "neutral"]
+    sentiment_weights = [0.5, 0.3, 0.2]  # 权重，使正面新闻略多于负面新闻
+    
+    news_items = []
+    for i in range(limit):
+        # 生成随机日期（在过去一年内）
+        days_ago = np.random.randint(1, 365)
+        news_date = (end_date_obj - pd.Timedelta(days=days_ago)).strftime('%Y-%m-%d')
+        
+        # 随机选择新闻标题和摘要
+        news_idx = np.random.randint(0, len(news_titles))
+        title = news_titles[news_idx]
+        summary = news_summaries[news_idx]
+        
+        # 随机选择新闻来源
+        source = news_sources[np.random.randint(0, len(news_sources))]
+        
+        # 生成URL
+        url = f"https://example.com/news/{ticker.lower()}/{news_date.replace('-', '')}-{news_idx}"
+        
+        # 根据新闻标题和摘要确定情感
+        # 在实际应用中，这应该使用NLP模型进行分析
+        if "strong" in title.lower() or "beats" in title.lower() or "exceeds" in title.lower():
+            sentiment = "positive"
+        elif "misses" in title.lower() or "downgraded" in title.lower() or "resigns" in title.lower() or "challenges" in title.lower():
+            sentiment = "negative"
+        else:
+            # 随机选择情感，但使用权重使正面新闻略多
+            sentiment = np.random.choice(sentiments, p=sentiment_weights)
+        
+        # 创建新闻项目对象
+        news_item = NewsItem(
+            date=news_date,
+            title=title,
+            summary=summary,
+            source=source,
+            url=url,
+            sentiment=sentiment
+        )
+        
+        news_items.append(news_item)
+    
+    # 按日期排序
+    news_items.sort(key=lambda x: x.date, reverse=True)
+    
+    return news_items

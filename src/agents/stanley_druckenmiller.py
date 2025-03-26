@@ -78,10 +78,10 @@ def stanley_druckenmiller_agent(state: AgentState):
         market_cap = get_market_cap(ticker, end_date)
 
         progress.update_status("stanley_druckenmiller_agent", ticker, "Fetching insider trades")
-        insider_trades = get_insider_trades(ticker, end_date, start_date=None, limit=50)
+        insider_trades = get_insider_trades(ticker, end_date, limit=50)
 
         progress.update_status("stanley_druckenmiller_agent", ticker, "Fetching company news")
-        company_news = get_company_news(ticker, end_date, start_date=None, limit=50)
+        company_news = get_company_news(ticker, end_date, limit=50)
 
         progress.update_status("stanley_druckenmiller_agent", ticker, "Fetching recent price data for momentum")
         prices = get_prices(ticker, start_date=start_date, end_date=end_date)
