@@ -395,7 +395,7 @@ class NewsItem:
         self.sentiment = sentiment
 
 
-def get_insider_trades(ticker: str, end_date: Optional[str] = None, limit: int = 100) -> List[InsiderTrade]:
+def get_insider_trades(ticker: str, end_date: Optional[str] = None, start_date: Optional[str] = None, limit: int = 100) -> List[InsiderTrade]:
     """
     获取内部交易数据
     
@@ -457,6 +457,12 @@ def get_insider_trades(ticker: str, end_date: Optional[str] = None, limit: int =
     
     # 按日期排序
     trades.sort(key=lambda x: x.date, reverse=True)
+    
+    # 如果有开始日期，过滤掉早于开始日期的交易
+    if start_date:
+        start_date_obj = datetime.strptime(start_date, '%Y-%m-%d')
+        trades = [trade for trade in trades
+                 if datetime.strptime(trade.date, '%Y-%m-%d') >= start_date_obj]
     
     return trades
 

@@ -59,8 +59,23 @@ def valuation_agent(state: AgentState):
         previous_financial_line_item = financial_line_items[1]
 
         progress.update_status("valuation_agent", ticker, "Calculating owner earnings")
-        # Calculate working capital change
-        working_capital_change = current_financial_line_item.working_capital - previous_financial_line_item.working_capital
+        # Calculate working capital change, handling potential None values
+        current_wc = current_financial_line_item.working_capital
+        previous_wc = previous_financial_line_item.working_capital
+
+        if current_wc is None or previous_wc is None:
+            # Log a warning or handle appropriately if needed
+            # print(f"Warning: Working capital data missing for {ticker}. Setting change to 0.")
+            working_capital_change = 0
+        else:
+            # Ensure both are numeric before subtracting
+            if isinstance(current_wc, (int, float)) and isinstance(previous_wc, (int, float)):
+                 working_capital_change = current_wc - previous_wc
+            else:
+                 # Handle cases where values might be non-numeric unexpectedly
+                 # print(f"Warning: Non-numeric working capital data for {ticker}. Setting change to 0.")
+                 working_capital_change = 0
+
 
         # Owner Earnings Valuation (Buffett Method)
         owner_earnings_value = calculate_owner_earnings_value(
@@ -84,8 +99,8 @@ def valuation_agent(state: AgentState):
         )
 
         progress.update_status("valuation_agent", ticker, "Comparing to market value")
-        # Get the market cap
-        market_cap = get_market_cap(ticker=ticker, end_date=end_date)
+        # Get the market cap using the 'date' parameter
+        market_cap = get_market_cap(ticker=ticker, date=end_date)
 
         # Calculate combined valuation gap (average of both methods)
         dcf_gap = (dcf_value - market_cap) / market_cap
@@ -208,18 +223,42 @@ def calculate_intrinsic_value(
     Computes the discounted cash flow (DCF) for a given company based on the current free cash flow.
     Use this function to calculate the intrinsic value of a stock.
     """
+    # Handle potential None values for inputs
+    fcf = free_cash_flow if free_cash_flow is not None else 0
+    gr = growth_rate if growth_rate is not None else 0
+    # Use default 0.10 if discount_rate is None
+    dr = discount_rate if discount_rate is not None else 0.10
+    tgr = terminal_growth_rate if terminal_growth_rate is not None else 0
+
     # Estimate the future cash flows based on the growth rate
-    cash_flows = [free_cash_flow * (1 + growth_rate) ** i for i in range(num_years)]
+    cash_flows = [fcf * (1 + gr) ** i for i in range(num_years)]
 
     # Calculate the present value of projected cash flows
     present_values = []
-    for i in range(num_years):
-        present_value = cash_flows[i] / (1 + discount_rate) ** (i + 1)
-        present_values.append(present_value)
+    if (1 + dr) != 0: # Avoid division by zero if dr = -1
+        for i in range(num_years):
+            # Ensure exponent is int
+            exponent = int(i + 1)
+            present_value = cash_flows[i] / (1 + dr) ** exponent
+            present_values.append(present_value)
+    else:
+        # Handle case where discount rate makes denominator zero
+        present_values = [0] * num_years # Or handle as an error/warning
 
-    # Calculate the terminal value
-    terminal_value = cash_flows[-1] * (1 + terminal_growth_rate) / (discount_rate - terminal_growth_rate)
-    terminal_present_value = terminal_value / (1 + discount_rate) ** num_years
+    # Calculate the terminal value, checking for division by zero
+    denominator = dr - tgr
+    if denominator != 0 and cash_flows: # Ensure cash_flows is not empty
+        terminal_value = cash_flows[-1] * (1 + tgr) / denominator
+    else:
+        terminal_value = 0 # Avoid division by zero or if no cash flows
+
+    # Calculate terminal present value, checking denominator
+    if (1 + dr) != 0:
+        # Ensure exponent is int
+        exponent = int(num_years)
+        terminal_present_value = terminal_value / (1 + dr) ** exponent
+    else:
+        terminal_present_value = 0 # Avoid division by zero
 
     # Sum up the present values and terminal value
     dcf_value = sum(present_values) + terminal_present_value

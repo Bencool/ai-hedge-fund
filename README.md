@@ -92,6 +92,37 @@ Financial data for AAPL, GOOGL, MSFT, NVDA, and TSLA is free and does not requir
 
 For any other ticker, you will need to set the `FINANCIAL_DATASETS_API_KEY` in the .env file.
 
+### Using Yahoo Finance Real-Time Data (via RapidAPI)
+
+For more comprehensive or real-time data beyond the free tier or basic public access, you can configure the system to use the Yahoo Finance API provided via RapidAPI. This corresponds to the `yahoo_pro` data source option.
+
+1.  **Get API Key:**
+    *   Go to [RapidAPI - Yahoo Finance API](https://rapidapi.com/apidojo/api/yh-finance).
+    *   Sign up or log in.
+    *   Subscribe to a plan (a free tier is usually available).
+    *   Find and copy your `X-RapidAPI-Key` from the API's endpoint page.
+
+2.  **Configure `.env`:**
+    *   Open your `.env` file.
+    *   Add or modify the `YAHOO_API_KEY` variable, replacing `your-rapidapi-yahoo-finance-key` with the key you copied:
+        ```env
+        YAHOO_API_KEY=your-rapidapi-yahoo-finance-key
+        ```
+
+3.  **Set Data Source Priority (Optional but Recommended):**
+    *   Ensure `yahoo_pro` is listed in `DATA_SOURCES` in your `.env` file, preferably first, to prioritize it:
+        ```env
+        DATA_SOURCES=yahoo_pro,yahoo,sample
+        ```
+
+4.  **Run with `yahoo_pro`:**
+    *   When running the main script or backtester, explicitly specify the `yahoo_pro` source if you want to ensure it's used (especially if it's not the first in `DATA_SOURCES`):
+        ```bash
+        poetry run python src/main.py --ticker YOUR_TICKER --source yahoo_pro
+        # or
+        poetry run python src/backtester.py --ticker YOUR_TICKER --source yahoo_pro
+        ```
+
 ## Usage
 
 ### Running the Hedge Fund

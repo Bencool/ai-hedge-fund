@@ -41,47 +41,48 @@ def fundamentals_agent(state: AgentState):
         progress.update_status("fundamentals_agent", ticker, "Analyzing profitability")
         # 1. Profitability Analysis
         return_on_equity = metrics.return_on_equity
-        net_margin = metrics.net_margin
-        operating_margin = metrics.operating_margin
+        net_margin = metrics.profit_margins  # Changed from net_margin to profit_margins
+        operating_margin = None  # operating_margin not available in FundamentalData model
 
         thresholds = [
             (return_on_equity, 0.15),  # Strong ROE above 15%
             (net_margin, 0.20),  # Healthy profit margins
-            (operating_margin, 0.15),  # Strong operating efficiency
         ]
         profitability_score = sum(metric is not None and metric > threshold for metric, threshold in thresholds)
+        # Adjust scoring since we removed operating_margin
+        profitability_score = 1 if profitability_score >= 1 else 0  # Simple pass/fail based on available metrics
 
         signals.append("bullish" if profitability_score >= 2 else "bearish" if profitability_score == 0 else "neutral")
         reasoning["profitability_signal"] = {
             "signal": signals[0],
-            "details": (f"ROE: {return_on_equity:.2%}" if return_on_equity else "ROE: N/A") + ", " + (f"Net Margin: {net_margin:.2%}" if net_margin else "Net Margin: N/A") + ", " + (f"Op Margin: {operating_margin:.2%}" if operating_margin else "Op Margin: N/A"),
+            "details": (f"ROE: {return_on_equity:.2%}" if return_on_equity else "ROE: N/A") + ", " + (f"Net Margin: {net_margin:.2%}" if net_margin else "Net Margin: N/A"),
         }
 
         progress.update_status("fundamentals_agent", ticker, "Analyzing growth")
         # 2. Growth Analysis
         revenue_growth = metrics.revenue_growth
         earnings_growth = metrics.earnings_growth
-        book_value_growth = metrics.book_value_growth
-
+        # Remove book_value_growth as it's not available in the model
         thresholds = [
             (revenue_growth, 0.10),  # 10% revenue growth
             (earnings_growth, 0.10),  # 10% earnings growth
-            (book_value_growth, 0.10),  # 10% book value growth
         ]
         growth_score = sum(metric is not None and metric > threshold for metric, threshold in thresholds)
 
         signals.append("bullish" if growth_score >= 2 else "bearish" if growth_score == 0 else "neutral")
         reasoning["growth_signal"] = {
             "signal": signals[1],
-            "details": (f"Revenue Growth: {revenue_growth:.2%}" if revenue_growth else "Revenue Growth: N/A") + ", " + (f"Earnings Growth: {earnings_growth:.2%}" if earnings_growth else "Earnings Growth: N/A"),
+            "details": (f"Revenue Growth: {revenue_growth:.2%}" if revenue_growth else "Revenue Growth: N/A") + ", " +
+                      (f"Earnings Growth: {earnings_growth:.2%}" if earnings_growth else "Earnings Growth: N/A"),
         }
 
         progress.update_status("fundamentals_agent", ticker, "Analyzing financial health")
         # 3. Financial Health
         current_ratio = metrics.current_ratio
         debt_to_equity = metrics.debt_to_equity
-        free_cash_flow_per_share = metrics.free_cash_flow_per_share
-        earnings_per_share = metrics.earnings_per_share
+        # Safely access potentially missing attributes
+        free_cash_flow_per_share = getattr(metrics, 'free_cash_flow_per_share', None)
+        earnings_per_share = getattr(metrics, 'earnings_per_share', None)
 
         health_score = 0
         if current_ratio and current_ratio > 1.5:  # Strong liquidity
@@ -99,9 +100,12 @@ def fundamentals_agent(state: AgentState):
 
         progress.update_status("fundamentals_agent", ticker, "Analyzing valuation ratios")
         # 4. Price to X ratios
-        pe_ratio = metrics.price_to_earnings_ratio
-        pb_ratio = metrics.price_to_book_ratio
-        ps_ratio = metrics.price_to_sales_ratio
+        # Use getattr for safe access and correct attribute name
+        pe_ratio = getattr(metrics, 'pe_ratio', None)
+        # Use getattr for safe access and correct attribute name
+        pb_ratio = getattr(metrics, 'price_to_book', None)
+        # Use getattr for safe access as this attribute might not exist
+        ps_ratio = getattr(metrics, 'price_to_sales_ratio', None)
 
         thresholds = [
             (pe_ratio, 25),  # Reasonable P/E ratio

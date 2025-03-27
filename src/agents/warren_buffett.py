@@ -1,3 +1,4 @@
+
 from graph.state import AgentState, show_agent_reasoning
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.messages import HumanMessage
@@ -163,10 +164,10 @@ def analyze_fundamentals(metrics: list) -> dict[str, any]:
         reasoning.append("Debt to equity data not available")
 
     # Check Operating Margin
-    if latest_metrics.operating_margin and latest_metrics.operating_margin > 0.15:
+    if hasattr(latest_metrics, 'profit_margins') and latest_metrics.profit_margins and latest_metrics.profit_margins > 0.15:
         score += 2
         reasoning.append("Strong operating margins")
-    elif latest_metrics.operating_margin:
+    elif hasattr(latest_metrics, 'operating_margin') and latest_metrics.operating_margin:
         reasoning.append(f"Weak operating margin of {latest_metrics.operating_margin:.1%}")
     else:
         reasoning.append("Operating margin data not available")
@@ -180,7 +181,8 @@ def analyze_fundamentals(metrics: list) -> dict[str, any]:
     else:
         reasoning.append("Current ratio data not available")
 
-    return {"score": score, "details": "; ".join(reasoning), "metrics": latest_metrics.model_dump()}
+    # Convert FinancialMetrics object to dict using __dict__
+    return {"score": score, "details": "; ".join(reasoning), "metrics": latest_metrics.__dict__}
 
 
 def analyze_consistency(financial_line_items: list) -> dict[str, any]:
@@ -233,8 +235,8 @@ def analyze_moat(metrics: list) -> dict[str, any]:
     for m in metrics:
         if m.return_on_equity is not None:
             historical_roes.append(m.return_on_equity)
-        if m.operating_margin is not None:
-            historical_margins.append(m.operating_margin)
+        if hasattr(m, 'profit_margins') and m.profit_margins is not None:
+            historical_margins.append(m.profit_margins)
 
     # Check for stable or improving ROE
     if len(historical_roes) >= 3:
@@ -247,7 +249,7 @@ def analyze_moat(metrics: list) -> dict[str, any]:
 
     # Check for stable or improving operating margin
     if len(historical_margins) >= 3:
-        stable_margin = all(m > 0.15 for m in historical_margins)
+        stable_margin = all(m > 0.15 for m in historical_margins) if historical_margins else False
         if stable_margin:
             moat_score += 1
             reasoning.append("Stable operating margins above 15% (moat indicator)")

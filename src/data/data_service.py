@@ -34,8 +34,13 @@ class DataService:
     
     def __init__(self):
         """初始化数据服务"""
-        # 从环境变量获取配置
+        # 初始化数据源适配器
+        self.sources = ['yahoo', 'sample']
+        # 环境变量配置
         self.default_source = os.getenv('DEFAULT_DATA_SOURCE', 'sample')
+        # 专业版API配置
+        if os.getenv('YAHOO_API_KEY'):
+            self.sources.append('yahoo_pro')
         
         # 初始化数据源适配器
         self.adapters = {

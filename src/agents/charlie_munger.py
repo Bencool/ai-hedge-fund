@@ -62,9 +62,7 @@ def charlie_munger_agent(state: AgentState):
         insider_trades = get_insider_trades(
             ticker,
             end_date,
-            # Look back 2 years for insider trading patterns
-            start_date=None,
-            limit=100
+            limit=100  # Get most recent 100 insider trades
         )
         
         progress.update_status("charlie_munger_agent", ticker, "Fetching company news")
@@ -72,8 +70,6 @@ def charlie_munger_agent(state: AgentState):
         company_news = get_company_news(
             ticker,
             end_date,
-            # Look back 1 year for news
-            start_date=None,
             limit=100
         )
         
@@ -440,9 +436,20 @@ def analyze_predictability(financial_line_items: list) -> dict:
                if hasattr(item, 'revenue') and item.revenue is not None]
     
     if revenues and len(revenues) >= 5:
-        # Calculate year-over-year growth rates
-        growth_rates = [(revenues[i] / revenues[i+1] - 1) for i in range(len(revenues)-1)]
+        # Calculate year-over-year growth rates with zero protection
+        growth_rates = []
+        for i in range(len(revenues)-1):
+            if revenues[i+1] == 0:
+                continue  # Skip division by zero
+            growth_rate = (revenues[i] / revenues[i+1] - 1)
+            growth_rates.append(growth_rate)
         
+        if not growth_rates:  # All rates were skipped due to zero division
+            return {
+                "score": 0,
+                "details": "Cannot calculate growth rates (invalid revenue data)"
+            }
+            
         avg_growth = sum(growth_rates) / len(growth_rates)
         growth_volatility = sum(abs(r - avg_growth) for r in growth_rates) / len(growth_rates)
         
