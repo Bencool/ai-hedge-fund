@@ -39,6 +39,8 @@ graph TD
   - Data models (`models.py`)
 - Benefits: Consistent data access, efficient caching
 
+ - Planned Enhancement: Integrate Redis for distributed caching to improve performance and scalability.
+
 ### 3. Risk Management Pattern
 - Location: `src/agents/risk_manager.py`
 - Pattern: Observer Pattern for risk monitoring

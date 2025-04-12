@@ -35,7 +35,7 @@
 
 ## In Progress Features
 
-### Backtesting System (70% Complete)
+### Backtesting System (80% Complete)
 - ⏳ Historical data simulation
 - ⏳ Performance metrics
 - ⏳ Strategy evaluation
@@ -71,9 +71,9 @@
 
 ### Technical Debt
 1. Basic Caching System
-   - Current: Simple in-memory cache
-   - Needed: Distributed caching solution
-   - Impact: Performance limitations
+   - Current: Simple in-memory cache (Identified bottleneck)
+   - Decision: Implement Redis for distributed caching
+   - Status: Planned for near-term implementation
 
 2. Limited Parallel Processing
    - Current: Sequential execution

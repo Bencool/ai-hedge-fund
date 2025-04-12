@@ -9,6 +9,7 @@
 - Creating visualization tools
 
 ### 2. Risk Management System
+- Initial focus on Historical Simulation method
 - Implementing VaR calculations
 - Developing position sizing algorithms
 - Building circuit breaker mechanisms
@@ -32,7 +33,7 @@
 - ✅ Basic LLM integration structure
 
 ### In Progress
-- ⏳ Backtesting system development
+- ⏳ Backtesting system development (80% complete)
 - ⏳ Risk management implementation
 - ⏳ Performance optimization
 - ⏳ Data caching improvements
@@ -53,6 +54,11 @@
 3. Data Management Strategy
    - Caching for performance
    - Modular data sources
+
+
+ 4. Caching Strategy
+    - Adopt Redis for distributed caching
+    - Address performance bottlenecks
    - Efficient state management
 
 ### Architecture Decisions

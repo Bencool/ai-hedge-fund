@@ -117,13 +117,13 @@ src/
 ## Technical Debt & Improvements
 
 ### Current Technical Debt
-- Basic caching implementation
+- Basic caching implementation (Decision: Replace with Redis)
 - Limited parallel processing
 - Simple risk models
 - Basic LLM integration
 
 ### Planned Improvements
-- Advanced caching system
+- Implement Redis for distributed caching
 - Parallel agent execution
 - Enhanced risk modeling
 - Expanded LLM capabilities
