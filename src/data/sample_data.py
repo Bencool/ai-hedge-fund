@@ -187,6 +187,9 @@ def generate_fundamental_data(ticker: str) -> Dict[str, Any]:
             'quick_ratio': 1.2,
             'target_price': 100.0,
             'analyst_rating': 2.5,
+            # 添加 Michael Burry agent 需要的字段
+            'free_cash_flow': 50000000,  # 示例值
+            'ev_to_ebit': 15.0,         # 示例值
             'last_updated': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         }
 

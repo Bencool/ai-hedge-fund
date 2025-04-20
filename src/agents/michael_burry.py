@@ -82,7 +82,7 @@ def michael_burry_agent(state: AgentState):  # noqa: C901  (complexity is fine h
         insider_trades = get_insider_trades(ticker, end_date=end_date, start_date=start_date)
 
         progress.update_status("michael_burry_agent", ticker, "Fetching company news")
-        news = get_company_news(ticker, end_date=end_date, start_date=start_date, limit=250)
+        news = get_company_news(ticker, end_date=end_date, limit=250)
 
         progress.update_status("michael_burry_agent", ticker, "Fetching market cap")
         market_cap = get_market_cap(ticker, end_date)

@@ -83,7 +83,7 @@ def peter_lynch_agent(state: AgentState):
         insider_trades = get_insider_trades(ticker, end_date, start_date=None, limit=50)
 
         progress.update_status("peter_lynch_agent", ticker, "Fetching company news")
-        company_news = get_company_news(ticker, end_date, start_date=None, limit=50)
+        company_news = get_company_news(ticker, end_date, limit=50)
 
         progress.update_status("peter_lynch_agent", ticker, "Fetching recent price data for reference")
         prices = get_prices(ticker, start_date=start_date, end_date=end_date)

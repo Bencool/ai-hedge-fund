@@ -59,11 +59,12 @@ def get_financial_metrics(ticker: str, end_date: Optional[str] = None, period: s
         "revenue_growth": fundamentals.get("revenue_growth"),
         "current_ratio": fundamentals.get("current_ratio"),
         "quick_ratio": fundamentals.get("quick_ratio"),
-        "earnings_growth": 0.05  # 添加默认的收益增长率
+        "earnings_growth": 0.05,  # 添加默认的收益增长率
+        "ev_to_ebit": fundamentals.get("ev_to_ebit") # 添加 EV/EBIT
     }
     # 将字典转换为对象
     metrics.append(FinancialMetrics(**current_metrics))
-    
+
     # 为了演示，我们生成一些模拟的历史数据
     # 在实际应用中，这些数据应该从数据源获取
     for i in range(1, limit):
@@ -96,11 +97,12 @@ def get_financial_metrics(ticker: str, end_date: Optional[str] = None, period: s
             "revenue_growth": fundamentals.get("revenue_growth", 0.05) * (0.9 + 0.2 * (i / limit)),
             "current_ratio": fundamentals.get("current_ratio", 1.5) * (0.9 + 0.2 * (i / limit)),
             "quick_ratio": fundamentals.get("quick_ratio", 1.2) * (0.9 + 0.2 * (i / limit)),
-            "earnings_growth": 0.05 * (0.9 + 0.2 * (i / limit))  # 添加默认的收益增长率
+            "earnings_growth": 0.05 * (0.9 + 0.2 * (i / limit)),  # 添加默认的收益增长率
+            "ev_to_ebit": fundamentals.get("ev_to_ebit", 15.0) * (0.9 + 0.2 * (i / limit)) # 添加模拟的 EV/EBIT
         }
         # 将字典转换为对象
         metrics.append(FinancialMetrics(**hist_metrics))
-    
+
     return metrics
 
 def search_line_items(ticker: str, line_items: List[str], end_date: Optional[str] = None,
